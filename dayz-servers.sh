@@ -95,6 +95,20 @@ resolve_map_name(){
   echo "${name}"
 }
 
+decorate_instance_name(){
+  local base="$1" map="$2"
+  local trimmed="${base}"
+  while [[ "${trimmed}" == *"-" ]]; do
+    trimmed="${trimmed%-}"
+  done
+  local suffix="-${map}"
+  if [[ "${trimmed}" =~ (^|-)${map}$ ]]; then
+    echo "${trimmed}"
+  else
+    echo "${trimmed}${suffix}"
+  fi
+}
+
 mods_map_file(){ local map="$1"; echo "${SCRIPT_DIR}/mods-${map}.txt"; }
 mods_instance_file(){ local inst="$1"; echo "${SCRIPT_DIR}/mods-${inst}.txt"; }
 
@@ -436,7 +450,7 @@ assign_port(){
 }
 
 cmd_install(){
-  local inst=""
+  local inst_arg=""
   local map="${DEFAULT_MAP}"
   local mission_override=""
   local difficulty="${DEFAULT_DIFFICULTY}"
@@ -470,8 +484,8 @@ cmd_install(){
       -*)
         die "Unknown option: $1" ;;
       *)
-        if [[ -z "${inst}" ]]; then
-          inst="$1"
+        if [[ -z "${inst_arg}" ]]; then
+          inst_arg="$1"
           shift
         else
           die "Usage: $0 install <instance> [--map <name>] [--mission-template <template>] [--difficulty <level>]"
@@ -480,7 +494,7 @@ cmd_install(){
     esac
   done
 
-  [[ -n "${inst}" ]] || die "Usage: $0 install <instance> [--map <name>] [--mission-template <template>] [--difficulty <level>]"
+  [[ -n "${inst_arg}" ]] || die "Usage: $0 install <instance> [--map <name>] [--mission-template <template>] [--difficulty <level>]"
 
   need_bin awk; need_bin sed
   ensure_paths
@@ -491,6 +505,9 @@ cmd_install(){
   ensure_map_mod_stub "${map}"
   local mission_template
   mission_template="$(mission_template_for_map "${map}" "${mission_override}")"
+
+  local inst
+  inst="$(decorate_instance_name "${inst_arg}" "${map}")"
 
   local inst_dir cfg be profiles
   inst_dir="$(instance_dir "${inst}")"
@@ -541,6 +558,10 @@ INST
 
   echo
   echo "Instance '${inst}' installed."
+  if [[ "${inst}" != "${inst_arg}" ]]; then
+    echo "  (Requested name '${inst_arg}' expanded to '${inst}' to include the map.)"
+  fi
+  echo "  Instance ID: ${inst}"
   echo "  Map:        ${map} (mission: ${mission_template}, difficulty: ${difficulty})"
   echo "  Base mods:  ${base_mods}"
   echo "  Map mods:   ${map_mods}"
