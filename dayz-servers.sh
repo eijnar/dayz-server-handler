@@ -164,6 +164,33 @@ BASE
   done
 }
 
+install_steamcmd(){
+  need_bin curl
+  need_bin tar
+
+  ensure_paths
+
+  [[ -n "${STEAMCMD_DIR}" && "${STEAMCMD_DIR}" != "/" ]] || die "Invalid STEAMCMD_DIR '${STEAMCMD_DIR}'"
+
+  if [[ -x "${STEAMCMD_BIN}" ]]; then
+    echo "SteamCMD already installed at ${STEAMCMD_BIN}"
+    return 0
+  fi
+
+  echo "Downloading SteamCMD into ${STEAMCMD_DIR}…"
+  mkdir -p "${STEAMCMD_DIR}"
+  (
+    cd "${STEAMCMD_DIR}"
+    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf -
+  )
+
+  if [[ ! -x "${STEAMCMD_BIN}" ]]; then
+    die "SteamCMD download finished but ${STEAMCMD_BIN} was not created"
+  fi
+
+  echo "SteamCMD installed at ${STEAMCMD_BIN}"
+}
+
 port_in_use(){ local p="$1"; awk -F: -v p="${p}" 'NF==2 && $2==p {f=1} END{exit !f}' "${PORT_STATE_FILE}" 2>/dev/null || return 1; }
 port_for_instance(){ local i="$1"; awk -F: -v i="${i}" 'NF==2 && $1==i {print $2; f=1} END{exit !f}' "${PORT_STATE_FILE}" 2>/dev/null || return 1; }
 assign_port(){ local p; for ((p=PORT_RANGE_START;p<=PORT_RANGE_END;p++)); do ! port_in_use "$p" && { echo "$p"; return; }; done; die "No free ports in ${PORT_RANGE_START}-${PORT_RANGE_END}"; }
@@ -581,6 +608,29 @@ cmd_update(){
   "$(instance_dir "${inst}")/update.sh"
 }
 
+cmd_steamcmd_install(){
+  local force=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force) force=1; shift ;;
+      --help|-h)
+        echo "Usage: $0 steamcmd-install [--force]"
+        echo "Downloads SteamCMD into ${STEAMCMD_DIR}."
+        return 0 ;;
+      *) die "Unknown option for steamcmd-install: $1" ;;
+    esac
+  done
+
+  [[ -n "${STEAMCMD_DIR}" && "${STEAMCMD_DIR}" != "/" ]] || die "Invalid STEAMCMD_DIR '${STEAMCMD_DIR}'"
+
+  if [[ ${force} -eq 1 && -d "${STEAMCMD_DIR}" ]]; then
+    echo "Removing existing SteamCMD contents in ${STEAMCMD_DIR}…"
+    rm -rf "${STEAMCMD_DIR}"
+  fi
+
+  install_steamcmd
+}
+
 cmd_list(){
   ensure_paths
   echo "Instances:"
@@ -620,5 +670,6 @@ case "${1:-}" in
   update)  shift; cmd_update  "$@";;
   list)    shift; cmd_list    "$@";;
   remove)  shift; cmd_remove  "$@";;
-  *) echo "Usage: $0 {install <instance> [--map <name>] [--mission-template <template>] [--difficulty <level>]|update <instance>|list|remove <instance> [--purge]}"; exit 1;;
+  steamcmd-install) shift; cmd_steamcmd_install "$@";;
+  *) echo "Usage: $0 {install <instance> [--map <name>] [--mission-template <template>] [--difficulty <level>]|update <instance>|list|remove <instance> [--purge]|steamcmd-install [--force]}"; exit 1;;
 esac
