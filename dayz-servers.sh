@@ -444,7 +444,6 @@ User=${RUN_USER}
 Group=${RUN_GROUP}
 LimitNOFILE=${DEFAULT_MAX_FD}
 # Load Steam credentials (STEAM_USERNAME required; STEAM_PASSWORD optional)
-EnvironmentFile=${ENV_FILE}
 ExecStartPre=/bin/bash -lc '${inst_dir}/update.sh'
 ExecStart=/bin/bash -lc '${inst_dir}/run.sh'
 ExecReload=/bin/kill -s HUP \$MAINPID
